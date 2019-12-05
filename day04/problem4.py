@@ -20,17 +20,15 @@ def check_digits_b(int_str):
     if sorted(int_str) != list(int_str):
         return False
     # verify that two consective digits are the same
-    prev_digit = None
+    num_adjacent_copies = 0
     for ind in range(len(int_str) - 1):
-        if ind >= len(int_str) - 2:
-            next_digit = None
-        else:
-            next_digit = int_str[ind + 2]
         if int_str[ind] == int_str[ind + 1]:
-            if (int_str[ind] != prev_digit) and (int_str[ind] != next_digit):
-                return True
-        prev_digit = int_str[ind]
-    return False
+            num_adjacent_copies += 1
+        elif num_adjacent_copies == 1:
+            return True
+        else:
+            num_adjacent_copies = 0
+    return num_adjacent_copies == 1
 
 
 def test_4a():
