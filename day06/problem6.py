@@ -9,6 +9,10 @@ def build_map(orbits):
 
 
 def count_indirect(key, orbit_map):
+    # since we're doing this to every key in the map, it would be more
+    # efficient to store the results as they compute them. this way, we're
+    # recounting the same paths multiple times. but it runs fast enough
+    # without the optimization, so eh.
     center = orbit_map.get(key)
     if center not in orbit_map:
         return 0
@@ -32,10 +36,6 @@ def problem6a():
     return count_orbits(orbit_map)
 
 
-def problem6b():
-    pass
-
-
 def test_problem6a():
     with open('test_input.txt') as file_obj:
         lines = [line.strip() for line in file_obj]
@@ -48,4 +48,3 @@ def test_problem6a():
 if __name__ == '__main__':
     test_problem6a()
     print(problem6a())
-    # print(problem6b())
