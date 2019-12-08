@@ -106,7 +106,6 @@ def check_sequence(program):
         if output > max_output:
             best_perm = sequence
             max_output = output
-    import pdb; pdb.set_trace()
     return max_output, best_perm
 
 
