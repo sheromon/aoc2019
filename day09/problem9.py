@@ -96,6 +96,14 @@ def problem9a():
     return outputs
 
 
+def problem9b():
+    file_name = 'problem9.txt'
+    int_array = np.loadtxt(file_name, np.int32, delimiter=',')
+    computer = Computer(np.copy(int_array), [2])
+    outputs = computer.run()
+    return outputs
+
+
 def test_problem9a():
     test_program = [109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99]
     computer = Computer(np.copy(test_program), [])
@@ -117,3 +125,4 @@ def test_problem9a():
 if __name__ == '__main__':
     test_problem9a()
     print(problem9a())
+    print(problem9b())
