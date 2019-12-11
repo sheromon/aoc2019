@@ -25,7 +25,7 @@ def problem11b():
         new_coord = np.array(coord) - min_coords
         img[new_coord[0], new_coord[1]] = color
     plt.figure()
-    plt.imshow(img)
+    plt.imshow(img.T, origin='lower')
     plt.savefig('problem11b.jpg')
 
 
@@ -168,5 +168,5 @@ class Computer():
 
 
 if __name__ == '__main__':
-    problem11a()
+    # problem11a()
     problem11b()
