@@ -145,7 +145,7 @@ class Computer():
                 self.program[pos] = self.input_list.pop()
                 # print("Using input {}".format(self.program[pos]))
             elif opcode == 4:  # output
-                output_val = params[0]
+                output_val = int(params[0])
                 # print("Output: {}".format(output_val))
                 # stop processing until we have a new input
                 self.pointer += (1 + num_params)
