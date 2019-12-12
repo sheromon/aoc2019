@@ -1,3 +1,4 @@
+import copy
 import re
 
 import numpy as np
@@ -13,6 +14,7 @@ def problem12a():
         lines = [line.strip() for line in file_obj]
     system = System(lines)
     system.run(1000)
+    return system.get_total_energy()
 
 
 def problem12b():
@@ -23,9 +25,8 @@ class System():
 
     def __init__(self, moon_init):
         self.moons = []
-        for ind, line in enumerate(moon_init):
+        for line in moon_init:
             kwargs = self.parse_line(line)
-            kwargs['id'] = ind
             self.moons.append(Moon(**kwargs))
 
     def parse_line(self, line):
@@ -41,10 +42,6 @@ class System():
     def run(self, num_steps):
         for _ in range(num_steps):
             self.step()
-        energy = []
-        for moon in self.moons:
-            energy.append(moon.total_energy)
-        print(sum(energy))
 
     def step(self):
         pos_array = np.stack([moon.pos for moon in self.moons])
@@ -55,11 +52,13 @@ class System():
         for moon in self.moons:
             moon.apply_velocity()
 
+    def get_total_energy(self):
+        return sum([moon.total_energy for moon in self.moons])
+
 
 class Moon():
 
-    def __init__(self, id, x, y, z):
-        self.id = id
+    def __init__(self, x, y, z):
         self.pos = np.array([x, y, z], dtype=np.int32)
         self.vel = np.zeros(3, dtype=np.int32)
 
@@ -99,8 +98,9 @@ def test_problem12a():
     ]
     system = System(test_input)
     system.run(10)
+    assert system.get_total_energy() == 179
 
 
 if __name__ == '__main__':
     test_problem12a()
-    problem12a()
+    print(problem12a())
