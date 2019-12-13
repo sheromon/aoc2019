@@ -13,12 +13,19 @@ def problem12b():
     with open(file_name) as file_obj:
         lines = [line.strip() for line in file_obj]
     system = System(lines)
-    initial_moon_states = copy.deepcopy(system.moons)
-    system.run(1)
-    total_steps = 1
-    while not all([init == moon for init, moon in zip (initial_moon_states, system.moons)]):
+    initial_state = system.get_state()
+    state_history = [initial_state]
+    total_steps = 0
+    done = False
+    while not done:
         system.run(1)
         total_steps += 1
+        current_state = system.get_state()
+        for past_state in state_history:
+            if np.all(current_state == past_state):
+                done = True
+                break
+        state_history.append(current_state)
     return total_steps
 
 
@@ -55,6 +62,12 @@ class System():
 
     def get_total_energy(self):
         return sum([moon.total_energy for moon in self.moons])
+
+    def get_state(self):
+        all_pos = np.stack([np.copy(moon.pos) for moon in self.moons])
+        all_vel = np.stack([np.copy(moon.vel) for moon in self.moons])
+        state = np.concatenate((all_pos, all_vel))
+        return state
 
 
 class Moon():
@@ -101,12 +114,19 @@ def test_problem12b():
         '<x=3, y=5, z=-1>',
     ]
     system = System(test_input)
-    initial_moon_states = copy.deepcopy(system.moons)
-    system.run(1)
-    total_steps = 1
-    while not all([init == moon for init, moon in zip (initial_moon_states, system.moons)]):
+    initial_state = system.get_state()
+    state_history = [initial_state]
+    total_steps = 0
+    done = False
+    while not done:
         system.run(1)
         total_steps += 1
+        current_state = system.get_state()
+        for past_state in state_history:
+            if np.all(current_state == past_state):
+                done = True
+                break
+        state_history.append(current_state)
     assert total_steps == 2772
 
 
