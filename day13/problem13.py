@@ -12,7 +12,7 @@ def problem13a():
     file_name = 'day13/problem13.txt'
     program = np.loadtxt(file_name, np.int32, delimiter=',')
     img = get_initial_image(program)
-
+    print("Initial number of blocks:", np.sum(img == BLOCK))
     ball_coords = np.concatenate(np.where(img == BALL))
     ball = Ball(*tuple(ball_coords))
 
@@ -21,11 +21,17 @@ def problem13a():
     mpl_img = plt.imshow(img.T)
     plt.axis('off')
 
-    for _ in range(20):
-        ball.step(img)
+    while ball.in_bounds:
+        object_coords = ball.check(img)
+        if object_coords is None:
+            ball.step(img)
+        else:
+            ball.destroy_if_block(img, *object_coords)
+
         mpl_img.set_data(img.T)
         fig.canvas.draw()
-        time.sleep(0.5)
+        time.sleep(0.05)
+    print("Final number of blocks:", np.sum(img == BLOCK))
 
 
 def get_initial_image(program):
@@ -51,6 +57,7 @@ def get_initial_image(program):
 class Ball():
 
     def __init__(self, x, y):
+        self.in_bounds = True
         self.x = x
         self.y = y
         self.x_dir = 1
@@ -60,25 +67,33 @@ class Ball():
         grid[self.x, self.y] = EMPTY
         self.x += self.x_dir
         self.y += self.y_dir
-        grid[self.x, self.y] = BALL
+        try:
+            grid[self.x, self.y] = BALL
+        except IndexError:
+            self.in_bounds = False
 
+    def check(self, grid):
         next_x = self.x + self.x_dir
         next_y = self.y + self.y_dir
+        object_coords = None
+        if next_x >= grid.shape[0] or next_y >= grid.shape[1]:
+            self.in_bounds = False
+            return
         if grid[next_x, self.y] != EMPTY:
-            self.destroy_if_block(grid, next_x, self.y)
             self.x_dir *= -1
+            object_coords = next_x, self.y
         elif grid[self.x, next_y] != EMPTY:
-            self.destroy_if_block(grid, self.x, next_y)
             self.y_dir *= -1
+            object_coords = self.x, next_y
         elif grid[next_x, next_y] != EMPTY:
-            self.destroy_if_block(grid, next_x, next_y)
             self.x_dir *= -1
             self.y_dir *= -1
+            object_coords = next_x, next_y
+        return object_coords
 
     def destroy_if_block(self, grid, x, y):
         if grid[x, y] == BLOCK:
             grid[x, y] = EMPTY
-
 
 
 if __name__ == '__main__':
