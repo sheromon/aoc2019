@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 class Computer():
 
-    def __init__(self, program, input_list):
+    def __init__(self, program, input_list=None):
         self.program = {key: val for key, val in enumerate(program)}
         self.input_list = input_list
         self.pointer = 0
