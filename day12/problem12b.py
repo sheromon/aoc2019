@@ -8,34 +8,53 @@ import matplotlib.pyplot as plt
 COORDS = ('x', 'y', 'z')
 
 
-def problem12b():
+def problem12a():
     file_name = 'problem12.txt'
     with open(file_name) as file_obj:
         lines = [line.strip() for line in file_obj]
     system = System(lines)
+    system.run(1000)
+    return system.total_energy
+
+
+def problem12b(lines=None):
+    if lines is None:
+        file_name = 'problem12.txt'
+        with open(file_name) as file_obj:
+            lines = [line.strip() for line in file_obj]
+    system = System(lines)
     initial_state = system.get_state()
-    state_history = [initial_state]
+    # state_history = [initial_state]
     total_steps = 0
     done = False
+    report_interval = 1000000
     while not done:
         system.run(1)
         total_steps += 1
         current_state = system.get_state()
-        for past_state in state_history:
-            if np.all(current_state == past_state):
-                done = True
-                break
-        state_history.append(current_state)
+        if np.all(current_state == initial_state):
+            done = True
+            break
+        if total_steps % report_interval == 0:
+            print('Step %dM' % (total_steps//report_interval))
+        # for past_state in state_history:
+        #     if np.all(current_state == past_state):
+        #         done = True
+        #         break
+        # state_history.append(current_state)
     return total_steps
 
 
 class System():
 
     def __init__(self, moon_init):
-        self.moons = []
-        for line in moon_init:
-            kwargs = self.parse_line(line)
-            self.moons.append(Moon(**kwargs))
+        n_moons = len(moon_init)
+        self.pos = np.zeros((n_moons, 3), np.int64)
+        self.vel = np.zeros((n_moons, 3), np.int64)
+        for imoon, line in enumerate(moon_init):
+            pos_dict = self.parse_line(line)
+            self.pos[imoon, :] = np.array(
+                [pos_dict['x'], pos_dict['y'], pos_dict['z']])
 
     def parse_line(self, line):
         pattern = r'[a-z]=-*\d+'
@@ -48,62 +67,34 @@ class System():
         return kwargs
 
     def run(self, num_steps):
-        for _ in range(num_steps):
-            self.step()
-
-    def step(self):
-        pos_array = np.stack([moon.pos for moon in self.moons])
-        for moon in self.moons:
-            delta = pos_array - moon.pos
+        for istep in range(num_steps):
+            pos1 = self.pos[None, :]
+            pos2 = self.pos[:, None]
+            delta = pos1 - pos2
             gravity = np.maximum(np.minimum(delta, 1), -1)
-            moon.apply_gravity(np.sum(gravity, axis=0))
-        for moon in self.moons:
-            moon.apply_velocity()
+            self.apply_gravity(np.sum(gravity, axis=1))
+            self.apply_velocity()
 
-    def get_total_energy(self):
-        return sum([moon.total_energy for moon in self.moons])
-
-    def get_state(self):
-        all_pos = np.stack([np.copy(moon.pos) for moon in self.moons])
-        all_vel = np.stack([np.copy(moon.vel) for moon in self.moons])
-        state = np.concatenate((all_pos, all_vel))
-        return state
-
-
-class Moon():
-
-    def __init__(self, x, y, z):
-        self.pos = np.array([x, y, z], dtype=np.int32)
-        self.vel = np.zeros(3, dtype=np.int32)
-
-    def __repr__(self):
-        pos_str = ', '.join(
-            ['{:s}={:d}'.format(COORDS[ind], self.pos[ind]) for ind in range(3)])
-        vel_str = ', '.join(
-            ['{:s}={:d}'.format(COORDS[ind], self.vel[ind]) for ind in range(3)])
-        display_str = 'pos=<{:s}>, vel={:s}>'.format(pos_str, vel_str)
-        return display_str
-
-    def __eq__(self, other):
-        return np.all(self.pos == other.pos) and np.all(self.vel == other.vel)
-
-    def apply_gravity(self, grav):
-        self.vel += grav
+    def apply_gravity(self, gravity):
+        self.vel += gravity
 
     def apply_velocity(self):
         self.pos += self.vel
 
     @property
     def total_energy(self):
-        return self.potential_energy * self.kinetic_energy
+        return np.sum(self.potential_energy * self.kinetic_energy)
 
     @property
     def potential_energy(self):
-        return np.sum(np.abs(self.pos))
+        return np.sum(np.abs(self.pos), axis=1)
 
     @property
     def kinetic_energy(self):
-        return np.sum(np.abs(self.vel))
+        return np.sum(np.abs(self.vel), axis=1)
+
+    def get_state(self):
+        return np.concatenate((self.pos, self.vel))
 
 
 def test_problem12b():
@@ -113,20 +104,7 @@ def test_problem12b():
         '<x=4, y=-8, z=8>',
         '<x=3, y=5, z=-1>',
     ]
-    system = System(test_input)
-    initial_state = system.get_state()
-    state_history = [initial_state]
-    total_steps = 0
-    done = False
-    while not done:
-        system.run(1)
-        total_steps += 1
-        current_state = system.get_state()
-        for past_state in state_history:
-            if np.all(current_state == past_state):
-                done = True
-                break
-        state_history.append(current_state)
+    total_steps = problem12b(test_input)
     assert total_steps == 2772
 
 

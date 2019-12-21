@@ -8,26 +8,26 @@ import matplotlib.pyplot as plt
 COORDS = ('x', 'y', 'z')
 
 
-def problem12a():
-    file_name = 'problem12.txt'
-    with open(file_name) as file_obj:
-        lines = [line.strip() for line in file_obj]
+def problem12a(n_steps= 1000, lines=None):
+    if lines is None:
+        file_name = 'problem12.txt'
+        with open(file_name) as file_obj:
+            lines = [line.strip() for line in file_obj]
     system = System(lines)
-    system.run(1000)
-    return system.get_total_energy()
-
-
-def problem12b():
-    pass
+    system.run(n_steps)
+    return system.total_energy
 
 
 class System():
 
     def __init__(self, moon_init):
-        self.moons = []
-        for line in moon_init:
-            kwargs = self.parse_line(line)
-            self.moons.append(Moon(**kwargs))
+        n_moons = len(moon_init)
+        self.pos = np.zeros((n_moons, 3), np.int64)
+        self.vel = np.zeros((n_moons, 3), np.int64)
+        for imoon, line in enumerate(moon_init):
+            pos_dict = self.parse_line(line)
+            self.pos[imoon, :] = np.array(
+                [pos_dict['x'], pos_dict['y'], pos_dict['z']])
 
     def parse_line(self, line):
         pattern = r'[a-z]=-*\d+'
@@ -41,52 +41,36 @@ class System():
 
     def run(self, num_steps):
         for _ in range(num_steps):
-            self.step()
-
-    def step(self):
-        pos_array = np.stack([moon.pos for moon in self.moons])
-        for moon in self.moons:
-            delta = pos_array - moon.pos
+            pos1 = self.pos[None, :]
+            pos2 = self.pos[:, None]
+            delta = pos1 - pos2
             gravity = np.maximum(np.minimum(delta, 1), -1)
-            moon.apply_gravity(np.sum(gravity, axis=0))
-        for moon in self.moons:
-            moon.apply_velocity()
+            self.apply_gravity(np.sum(gravity, axis=1))
+            self.apply_velocity()
 
-    def get_total_energy(self):
-        return sum([moon.total_energy for moon in self.moons])
-
-
-class Moon():
-
-    def __init__(self, x, y, z):
-        self.pos = np.array([x, y, z], dtype=np.int32)
-        self.vel = np.zeros(3, dtype=np.int32)
-
-    def __repr__(self):
-        pos_str = ', '.join(
-            ['{:s}={:d}'.format(COORDS[ind], self.pos[ind]) for ind in range(3)])
-        vel_str = ', '.join(
-            ['{:s}={:d}'.format(COORDS[ind], self.vel[ind]) for ind in range(3)])
-        display_str = 'pos=<{:s}>, vel={:s}>'.format(pos_str, vel_str)
-        return display_str
-
-    def apply_gravity(self, grav):
-        self.vel += grav
+    def apply_gravity(self, gravity):
+        self.vel += gravity
 
     def apply_velocity(self):
         self.pos += self.vel
 
     @property
     def total_energy(self):
-        return self.potential_energy * self.kinetic_energy
+        return np.sum(self.potential_energy * self.kinetic_energy)
 
     @property
     def potential_energy(self):
-        return np.sum(np.abs(self.pos))
+        return np.sum(np.abs(self.pos), axis=1)
 
     @property
     def kinetic_energy(self):
-        return np.sum(np.abs(self.vel))
+        return np.sum(np.abs(self.vel), axis=1)
+
+    def get_state(self):
+        all_pos = np.stack([np.copy(moon.pos) for moon in self.moons])
+        all_vel = np.stack([np.copy(moon.vel) for moon in self.moons])
+        state = np.concatenate((all_pos, all_vel))
+        return state
 
 
 def test_problem12a():
@@ -96,9 +80,8 @@ def test_problem12a():
         '<x=4, y=-8, z=8>',
         '<x=3, y=5, z=-1>',
     ]
-    system = System(test_input)
-    system.run(10)
-    assert system.get_total_energy() == 179
+    result = problem12a(10, test_input)
+    assert result == 179
 
 
 if __name__ == '__main__':
