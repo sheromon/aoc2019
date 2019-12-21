@@ -2,20 +2,19 @@ import copy
 import re
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 COORDS = ('x', 'y', 'z')
 
 
-def problem12a():
-    file_name = 'problem12.txt'
-    with open(file_name) as file_obj:
-        lines = [line.strip() for line in file_obj]
+def problem12a(n_steps= 1000, lines=None):
+    if lines is None:
+        file_name = 'problem12.txt'
+        with open(file_name) as file_obj:
+            lines = [line.strip() for line in file_obj]
     system = System(lines)
-    system.run(1000)
+    system.run(n_steps)
     return system.total_energy
-
 
 def problem12b(lines=None):
     if lines is None:
@@ -24,25 +23,28 @@ def problem12b(lines=None):
             lines = [line.strip() for line in file_obj]
     system = System(lines)
     initial_state = system.get_state()
-    # state_history = [initial_state]
     total_steps = 0
     done = False
     report_interval = 1000000
+    steps_to_repeat = np.zeros(3, dtype=np.int64)
     while not done:
         system.run(1)
         total_steps += 1
         current_state = system.get_state()
-        if np.all(current_state == initial_state):
-            done = True
-            break
+        match = current_state == initial_state
+        if np.any(np.all(match, axis=0)):
+            ind = np.all(match, axis=0)
+            if steps_to_repeat[ind] == 0:
+                steps_to_repeat[ind] = total_steps
+            if np.all(steps_to_repeat > 0):
+                done = True
+                break
         if total_steps % report_interval == 0:
             print('Step %dM' % (total_steps//report_interval))
-        # for past_state in state_history:
-        #     if np.all(current_state == past_state):
-        #         done = True
-        #         break
-        # state_history.append(current_state)
-    return total_steps
+    result = np.lcm(
+        np.lcm(steps_to_repeat[0], steps_to_repeat[1]),
+        steps_to_repeat[2])
+    return result
 
 
 class System():
@@ -67,7 +69,7 @@ class System():
         return kwargs
 
     def run(self, num_steps):
-        for istep in range(num_steps):
+        for _ in range(num_steps):
             pos1 = self.pos[None, :]
             pos2 = self.pos[:, None]
             delta = pos1 - pos2
@@ -97,6 +99,17 @@ class System():
         return np.concatenate((self.pos, self.vel))
 
 
+def test_problem12a():
+    test_input = [
+        '<x=-1, y=0, z=2>',
+        '<x=2, y=-10, z=-7>',
+        '<x=4, y=-8, z=8>',
+        '<x=3, y=5, z=-1>',
+    ]
+    result = problem12a(10, test_input)
+    assert result == 179
+
+
 def test_problem12b():
     test_input = [
         '<x=-1, y=0, z=2>',
@@ -109,5 +122,7 @@ def test_problem12b():
 
 
 if __name__ == '__main__':
+    test_problem12a()
+    print(problem12a())
     test_problem12b()
     print(problem12b())
