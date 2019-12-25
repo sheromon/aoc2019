@@ -1,14 +1,19 @@
+import copy
+import logging
+
 import numpy as np
 
 
+# logging.basicConfig(level=logging.DEBUG)
 ENTRANCE = '@'
 WALL = '#'
 EMPTY = '.'
 DELTAS = np.array([[0, 1], [0, -1], [1, 0], [-1, 0]])
 
+
 def problem18a(map_str=None):
     if map_str is None:
-        file_name = 'day18/problem18.txt'
+        file_name = 'day18.txt'
         with open(file_name) as file_obj:
             map_str = file_obj.read()
 
@@ -16,86 +21,93 @@ def problem18a(map_str=None):
     lines = map_str.split('\n')
     char_array = np.array([list(line) for line in lines if line])
 
-    coords = np.concatenate(np.where(char_array == ENTRANCE))
+    # find the entrance, then replace it with the empty symbol to make
+    # things simpler
+    start_xy = np.concatenate(np.where(char_array == ENTRANCE))
     special_inds = np.stack(
         np.where((char_array != ENTRANCE) & \
                  (char_array != WALL) & \
                  (char_array != EMPTY))).T
-    keys = {}
-    doors = {}
+    char_array[tuple(start_xy)] = EMPTY
+
+    # find the keys
+    all_keys = set()
     for ind in special_inds:
-        char = char_array[ind[0], ind[1]]
+        char = char_array[tuple(ind)]
         if char.islower():
-            keys[char] = {'coords': ind}
-        else:
-            doors[char] = {'coords': ind}
-    print(coords)
-    print(keys)
-    print(doors)
+            all_keys.add(char)
+    print(all_keys)
 
-    items = find_items(coords, char_array, 0)
-    print(items)
-    print_map(char_array)
-    distances = dict()
-    for item in items:
-        map_distances(distances, [item['name']], item['coords'], [0], char_array)
-    print(distances)
-    return
+    maze = Maze(char_array, all_keys)
+    maze.explore(start_xy)
+    return maze.min_steps
 
 
-def print_map(char_array):
-    lines = [''.join(list(row)) for row in char_array]
-    print('\n'.join(lines))
+class Maze():
 
+    def __init__(self, char_array, all_keys):
+        self.char_array = char_array
+        self.all_keys = all_keys
+        self.distances = dict()
+        self.history = []
+        self.min_steps = np.inf
 
-def find_items(coords, char_array, num_steps):
-    items = []
-    deltas = get_next_directions(coords, char_array)
-    for delta in deltas:
-        char_array[coords[0], coords[1]] = WALL
-        new_coords = coords + delta
-        contents = check_pos(new_coords, char_array)
-        if contents is not None:
-            item = {
-                'name': contents,
-                'coords': new_coords,
-                'num_steps': num_steps + 1,
-            }
-            items += [item]
-        else:
-            items += find_items(new_coords, char_array, num_steps + 1)
-    return items
+    def get_next_coords(self, xy, prev_xy, keys):
+        # get all adjacent cells
+        deltas = np.array([[0, 1], [0, -1], [1, 0], [-1, 0]])
+        next_coords = xy + deltas
+        # weed out cells that are walls
+        vals = np.array([self.char_array[tuple(xy)] for xy in next_coords])
+        ok_inds = vals != WALL
+        next_coords, vals = next_coords[ok_inds], vals[ok_inds]
+        # weed out cells that are inaccessible (locked doors) and cells that
+        # are where we just came from, unless we're getting a key
+        ok_inds = np.ones_like(vals, dtype=np.bool)
+        special_inds = np.where(vals != EMPTY)[0]
+        for ind, val in enumerate(vals):
+            if val.isupper():
+                ok_inds[ind] = val.lower() in keys
+            elif val == EMPTY and np.all(next_coords[ind] == prev_xy):
+                ok_inds[ind] = False
+        next_coords, vals = next_coords[ok_inds], vals[ok_inds]
+        return next_coords, vals
 
+    def explore(self, xy, prev_xy=np.zeros(2)):
+        steps = 0
+        keys = set()
+        while True:
+            next_coords, vals = self.get_next_coords(xy, prev_xy, keys)
+            next_states = [(next_xy, val, xy, copy.deepcopy(keys)) 
+                           for next_xy, val in zip(next_coords, vals)]
+            sorted_keys = tuple(sorted(list(keys)))
+            xy_keys = (tuple(xy), sorted_keys)
+            prev_steps = self.distances.get(xy_keys, np.inf)
+            if steps > prev_steps:
+                logging.debug("Resetting due to steps > prev_steps")
+                next_states = []
+            else:
+                self.distances[xy_keys] = steps
+            while not next_states:
+                if steps == 0:
+                    logging.debug("Done exploring!")
+                    return
+                next_states = self.history.pop()
+                steps -= 1
+            xy, val, prev_xy, keys = next_states.pop()
+            self.history.append(next_states)
+            steps += 1
+            if val != EMPTY:
+                if val.islower():
+                    logging.debug("Adding key %s at %d steps", val, steps)
+                    keys.add(val)
+                    # if we just picked up a key, allow backtracking
+                    prev_xy = np.zeros(2)
+                    if (keys == self.all_keys) and (steps < self.min_steps):
+                        self.min_steps = steps
 
-def map_distances(distances, names, coords, steps_list, char_array):
-    distances[tuple(coords)] = {name: steps for name, steps in zip(names, steps_list)}
-    steps_list = [steps + 1 for steps in steps_list]
-    deltas = get_next_directions(coords, char_array)
-    for delta in deltas:
-        char_array[coords[0], coords[1]] = WALL
-        new_coords = coords + delta
-        contents = check_pos(new_coords, char_array)
-        if contents is not None:
-            names += contents
-            steps_list += [0]
-        map_distances(distances, names, new_coords, steps_list, char_array)
-
-
-def get_next_directions(coords, char_array):
-    directions = np.arange(4)
-    next_coords = coords + DELTAS
-    chars = np.array([char_array[coord[0], coord[1]]
-                        for coord in next_coords])
-    bad_inds = chars == WALL
-    return list(DELTAS[~bad_inds])
-
-
-def check_pos(coords, char_array):
-    current_val = char_array[coords[0], coords[1]]
-    if current_val not in [WALL, EMPTY, ENTRANCE]:
-        return current_val
-    else:
-        return None
+    def print_map(self):
+        lines = [''.join(list(row)) for row in self.char_array]
+        print('\n'.join(lines))
 
 
 def test_problem18a():
@@ -105,7 +117,17 @@ def test_problem18a():
         '#########',
     ]
     result = problem18a('\n'.join(test_input))
+    assert result == 8
+    print("Completed first test")
+
+    file_name = 'test_input2.txt'
+    with open(file_name) as file_obj:
+        test_input = file_obj.read()
+    result = problem18a(test_input)
+    assert result == 86
+    print("Completed second test")
 
 
 if __name__ == '__main__':
     test_problem18a()
+    print(problem18a())
